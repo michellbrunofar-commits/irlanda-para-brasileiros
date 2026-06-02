@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .report-card {
+    @apply relative bg-white rounded-2xl border border-gray-100 p-6
+           transition-all duration-300 cursor-pointer overflow-hidden
+           hover:border-ireland-green hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  .report-card::before {
+    content: '';
+    @apply absolute top-0 left-0 right-0 h-1 bg-hero-gradient;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+           text-xs font-semibold tracking-wide uppercase;
+  }
+}
+
+/* Prose customization for report content */
+.report-prose h2 {
+  border-bottom: 2px solid #e8f7f0;
+  padding-bottom: 0.4rem;
+  color: #111827;
+}
+
+.report-prose h3 {
+  color: #169B62;
+}
+
+.report-prose blockquote {
+  border-left-color: #169B62;
+  background: #e8f7f0;
+  padding: 0.75rem 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-style: normal;
+  color: #374151;
+}
+
+.report-prose strong {
+  color: #111827;
+}
+
+.report-prose ul li::marker {
+  color: #169B62;
+}
