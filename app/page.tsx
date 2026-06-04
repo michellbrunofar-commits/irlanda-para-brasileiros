@@ -32,7 +32,18 @@ export default function Home() {
           {/* Latest report — destaque */}
           {latest && (
             <Link href={`/relatorio/${latest.slug}`} className="block group">
-              <div className="report-card bg-gradient-to-br from-white to-ireland-green-light border-ireland-green/30">
+              <div className="report-card bg-gradient-to-br from-white to-ireland-green-light border-ireland-green/30 overflow-hidden">
+                {/* Thumbnail */}
+                <div className="relative -mx-6 -mt-6 mb-5 h-36 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://picsum.photos/seed/${latest.slug}-card/700/280`}
+                    alt=""
+                    aria-hidden="true"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80" />
+                </div>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
@@ -50,7 +61,6 @@ export default function Home() {
                       Ler relatório <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                     </span>
                   </div>
-                  <div className="text-5xl opacity-20 select-none">🇮🇪</div>
                 </div>
               </div>
             </Link>

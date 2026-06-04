@@ -67,6 +67,23 @@ export default async function ReportPage({
         </div>
       </div>
 
+      {/* Dublin illustration */}
+      <div className="relative rounded-xl overflow-hidden mb-8 h-40 bg-ireland-green-light">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`https://picsum.photos/seed/${post.slug}-ireland/800/320`}
+          alt="Irlanda"
+          className="w-full h-full object-cover opacity-70"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-ireland-green/30 to-transparent" />
+        <div className="absolute bottom-3 left-4 flex items-center gap-2">
+          <span className="text-xl drop-shadow">🇮🇪</span>
+          <span className="text-white text-xs font-semibold drop-shadow bg-black/30 px-2 py-0.5 rounded-full">
+            Dublin, Irlanda
+          </span>
+        </div>
+      </div>
+
       {/* Report content */}
       <div
         className="report-prose prose prose-gray max-w-none

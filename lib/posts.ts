@@ -29,7 +29,14 @@ export function getAllPostSlugs(): string[] {
 export function getAllPostsMeta(): PostMeta[] {
   return getAllPostSlugs().map((slug) => {
     const { data } = matter(fs.readFileSync(path.join(postsDir, `${slug}.md`), "utf8"));
-    return { slug, title: data.title ?? slug, date: data.date ?? slug };
+    const rawDate = data.date;
+    const date =
+      rawDate instanceof Date
+        ? rawDate.toISOString().slice(0, 10)
+        : rawDate != null
+        ? String(rawDate)
+        : slug;
+    return { slug, title: data.title ?? slug, date };
   });
 }
 
@@ -40,7 +47,12 @@ export async function getPostBySlug(slug: string): Promise<Post> {
   return {
     slug,
     title: data.title ?? slug,
-    date: data.date ?? slug,
+    date:
+      data.date instanceof Date
+        ? data.date.toISOString().slice(0, 10)
+        : data.date != null
+        ? String(data.date)
+        : slug,
     contentHtml: processed.toString(),
   };
 }
