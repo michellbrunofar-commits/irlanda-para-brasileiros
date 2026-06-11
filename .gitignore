@@ -17,4 +17,3 @@
 *.pem
 npm-debug.log*
 .vercel
-.github
