@@ -9,6 +9,7 @@ const postsDir = path.join(process.cwd(), "posts");
 export interface PostMeta {
   slug: string;
   title: string;
+  description: string;
   date: string;
 }
 
@@ -36,7 +37,7 @@ export function getAllPostsMeta(): PostMeta[] {
         : rawDate != null
         ? String(rawDate)
         : slug;
-    return { slug, title: data.title ?? slug, date };
+    return { slug, title: data.title ?? slug, description: data.description ?? "", date };
   });
 }
 
@@ -47,6 +48,7 @@ export async function getPostBySlug(slug: string): Promise<Post> {
   return {
     slug,
     title: data.title ?? slug,
+    description: data.description ?? "",
     date:
       data.date instanceof Date
         ? data.date.toISOString().slice(0, 10)

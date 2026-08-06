@@ -12,7 +12,7 @@ export default function Home() {
       {/* Intro pill */}
       <div className="inline-flex items-center gap-2 bg-ireland-green-light text-ireland-green text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
         <span className="w-2 h-2 rounded-full bg-ireland-green animate-pulse" />
-        Atualizado toda semana
+        Só publicamos quando tem novidade de verdade
       </div>
 
       <h2 className="text-3xl font-extrabold text-gray-900 leading-tight mb-2">
@@ -58,7 +58,7 @@ export default function Home() {
                       {latest.title}
                     </h3>
                     <span className="text-ireland-green font-semibold text-sm group-hover:gap-2 flex items-center gap-1 transition-all">
-                      Ler relatório <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                      Ler edição <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                     </span>
                   </div>
                 </div>
@@ -70,7 +70,7 @@ export default function Home() {
           {older.length > 0 && (
             <>
               <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-400 pt-4 pb-1">
-                Relatórios anteriores
+                Edições anteriores
               </h3>
               {older.map((post) => (
                 <Link key={post.slug} href={`/relatorio/${post.slug}`} className="block group">

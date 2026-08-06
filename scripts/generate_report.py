@@ -104,12 +104,12 @@ def fetch_news(news_api_key: str) -> dict:
 SYSTEM_PROMPT = """Você é um analista econômico especializado em Irlanda, escrevendo para imigrantes brasileiros.
 Sua tarefa é transformar as notícias fornecidas em um relatório estruturado em Português Brasileiro.
 
-O relatório deve seguir EXATAMENTE este formato markdown:
+Sua resposta deve começar EXATAMENTE com duas linhas assim, antes de qualquer outra coisa:
 
-# Análise Econômica — {DATA}
-> Gerado em {HORA} | Fonte: News API (newsapi.org)
+TITULO: [manchete factual sobre o fato mais relevante da semana, no estilo de título jornalístico — não genérico. Máximo 70 caracteres. Exemplo real: "Aluguel em Dublin sobe 8% e desemprego em tech chega a 5%"]
+DESCRICAO: [resumo do fato mais importante para meta description, 120 a 155 caracteres, frase completa]
 
----
+Depois de uma linha em branco, o corpo do relatório deve seguir EXATAMENTE este formato markdown (sem repetir título ou data como cabeçalho — isso já fica no frontmatter da página):
 
 ## Economia Irlandesa
 
@@ -135,6 +135,7 @@ O relatório deve seguir EXATAMENTE este formato markdown:
 - **General Employment Permit:** [atualizações ou "Nenhuma atualização esta semana"]
 - **IRP (Irish Residence Permit):** [prazos, mudanças ou "Nenhuma atualização esta semana"]
 - **Notícias relevantes:** [se houver]
+- **Fonte oficial:** [link para a página correspondente em Citizens Information ou no site do Departamento de Justiça — obrigatório sempre que houver qualquer afirmação sobre lei, visto ou prazo nesta seção]
 
 ---
 
@@ -177,12 +178,18 @@ O relatório deve seguir EXATAMENTE este formato markdown:
 *Fontes consultadas: [lista]*
 *Dados baseados em notícias publicadas entre {DATA_INICIO} e {DATA_FIM}.*
 
+*Pesquisa e primeira versão com apoio de IA, revisado e editado por Michell Lago.*
+
+*Este conteúdo é informativo e não constitui aconselhamento jurídico ou financeiro. Confirme sempre as informações nos canais oficiais antes de tomar qualquer decisão.*
+
 REGRAS:
 - Escreva TODO o conteúdo em Português Brasileiro
 - Traduza os títulos das notícias para PT-BR ao citá-los
 - Se não houver notícias para uma seção, escreva: "Nenhuma atualização significativa esta semana nesta área."
 - NÃO invente dados. Use apenas o que está nas notícias fornecidas
-- Seja direto e prático, sem jargões excessivos"""
+- Seja direto e prático, sem jargões excessivos
+- TODA afirmação sobre lei, visto ou prazo (mudança de legislação, prazo de naturalização, regras de permit, etc.) precisa vir acompanhada de link para a fonte primária oficial: Citizens Information (citizensinformation.ie), Departamento de Justiça (gov.ie/en/organisation/department-of-justice), Banco Central Europeu (ecb.europa.eu) ou CSO (cso.ie). NÃO cite um portal secundário (jornal, blog) como fonte de uma afirmação legal — use o jornal só para o fato do noticiário, e a fonte oficial para a regra em si. Se não houver fonte oficial confirmável na notícia fornecida, escreva a afirmação como "segundo [veículo]" e não a apresente como fato confirmado
+- O TITULO nunca pode ser genérico ("Análise Econômica — [data]"). Precisa nomear o fato mais relevante da semana"""
 
 
 def generate_report(news: dict, anthropic_api_key: str) -> str:
@@ -222,6 +229,22 @@ Gere o relatório completo seguindo o formato do sistema."""
     return message.content[0].text
 
 
+def parse_title_and_description(report: str) -> tuple[str, str, str]:
+    """Extrai TITULO/DESCRICAO das duas primeiras linhas e devolve (titulo, descricao, corpo_restante)."""
+    lines = report.strip().split("\n")
+    if len(lines) < 2 or not lines[0].startswith("TITULO:") or not lines[1].startswith("DESCRICAO:"):
+        print("Erro: resposta do Claude não começou com TITULO:/DESCRICAO: como exigido.", file=sys.stderr)
+        sys.exit(1)
+    titulo = lines[0].removeprefix("TITULO:").strip()
+    descricao = lines[1].removeprefix("DESCRICAO:").strip()
+    body = "\n".join(lines[2:]).lstrip("\n")
+    return titulo, descricao, body
+
+
+def yaml_quote(value: str) -> str:
+    return '"' + value.replace('"', '\\"') + '"'
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -241,19 +264,19 @@ def main():
     print(f"  {len(news['global'])} notícias globais", file=sys.stderr)
 
     print("Gerando relatório com Claude...", file=sys.stderr)
-    report_body = generate_report(news, anthropic_key)
+    report_raw = generate_report(news, anthropic_key)
+    titulo, descricao, report_body = parse_title_and_description(report_raw)
 
     today = datetime.now(timezone.utc)
     slug = today.strftime("%Y-%m-%d")
-    title_date = today.strftime("%d de %B de %Y").replace(
-        "January", "Janeiro").replace("February", "Fevereiro").replace(
-        "March", "Março").replace("April", "Abril").replace(
-        "May", "Maio").replace("June", "Junho").replace(
-        "July", "Julho").replace("August", "Agosto").replace(
-        "September", "Setembro").replace("October", "Outubro").replace(
-        "November", "Novembro").replace("December", "Dezembro")
 
-    frontmatter = f"---\ntitle: Análise Econômica — {title_date}\ndate: {slug}\n---\n\n"
+    frontmatter = (
+        "---\n"
+        f"title: {yaml_quote(titulo)}\n"
+        f"description: {yaml_quote(descricao)}\n"
+        f"date: {slug}\n"
+        "---\n\n"
+    )
     final = frontmatter + report_body
 
     posts_dir = Path(__file__).parent.parent / "posts"
