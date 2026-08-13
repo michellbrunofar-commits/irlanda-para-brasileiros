@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-Fetch economic news + generate markdown report via Claude API.
-Saves to ../posts/YYYY-MM-DD.md
+Fetch economic news + generate newsletter-style markdown post via Claude API.
+Saves to ../posts/YYYY-MM-DD.md and updates ../data/seen-articles.json.
+
+Skips (exits 0, no file written) if there aren't at least 2 genuinely new
+(never-published-before) and fresh (<48h) articles.
 
 Required env vars:
-  NEWS_API_KEY      — https://newsapi.org/register
+  NEWSDATA_API_KEY  — https://newsdata.io
   ANTHROPIC_API_KEY — https://console.anthropic.com
 """
 
@@ -30,25 +33,9 @@ except ImportError:
     print("Erro: instale o pacote anthropic com: pip install anthropic")
     sys.exit(1)
 
-# ── News API ──────────────────────────────────────────────────────────────────
-
-NEWSAPI_BASE = "https://newsapi.org/v2/everything"
-
-IRELAND_QUERY = (
-    '"Ireland economy" OR "Irish economy" OR "Ireland jobs" OR '
-    '"housing Ireland" OR "Ireland visa" OR "Ireland inflation" OR '
-    '"Ireland rent" OR "Irish housing" OR "Irish immigration" OR '
-    '"IDA Ireland" OR "Ireland unemployment" OR "Ireland GDP" OR '
-    '"Ireland cost of living" OR "GNIB" OR "IRP permit" OR '
-    '"Critical Skills permit Ireland" OR "General Employment permit Ireland"'
-)
-
-GLOBAL_QUERY = (
-    '"global economy" OR "world economy" OR "eurozone" OR '
-    '"ECB interest rates" OR "European Central Bank" OR '
-    '"IMF forecast" OR "global recession" OR "inflation Europe" OR '
-    '"EU economy" OR "Fed interest rate" OR "global GDP"'
-)
+ROOT = Path(__file__).parent.parent
+SEEN_PATH = ROOT / "data" / "seen-articles.json"
+POSTS_DIR = ROOT / "posts"
 
 IRRELEVANT = [
     "sport", "football", "soccer", "rugby", "cricket", "golf",
@@ -56,143 +43,152 @@ IRRELEVANT = [
     "tv show", "reality show", "singer", "actor", "actress",
 ]
 
+# ── NewsData.io ──────────────────────────────────────────────────────────────
+# qInTitle tem limite de tamanho da API — por isso termos curtos, sem aspas.
 
-def _fetch(query: str, api_key: str, page_size: int = 10) -> list[dict]:
-    from_date = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+NEWSDATA_BASE = "https://newsdata.io/api/1/latest"
+
+
+def _fetch(q_in_title: str, api_key: str) -> list[dict]:
     params = urllib.parse.urlencode({
-        "q": query, "language": "en", "sortBy": "publishedAt",
-        "pageSize": page_size, "from": from_date, "apiKey": api_key,
+        "qInTitle": q_in_title, "category": "business", "language": "en", "apikey": api_key,
     })
-    url = f"{NEWSAPI_BASE}?{params}"
+    url = f"{NEWSDATA_BASE}?{params}"
     try:
         with urllib.request.urlopen(url, timeout=15, context=SSL_CTX) as r:
             data = json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
-        msg = json.loads(e.read().decode()).get("message", str(e))
-        print(f"Erro News API: {msg}", file=sys.stderr)
+        msg = json.loads(e.read().decode()).get("results", {}).get("message", str(e))
+        print(f"Erro NewsData.io: {msg}", file=sys.stderr)
         sys.exit(1)
     except urllib.error.URLError as e:
         print(f"Erro de rede: {e.reason}", file=sys.stderr)
         sys.exit(1)
 
-    articles = data.get("articles", [])
+    articles = data.get("results") or []
     result = []
     for a in articles:
-        text = f"{a.get('title','')} {a.get('description','')}".lower()
+        title = a.get("title", "") or ""
+        desc = a.get("description", "") or ""
+        text = f"{title} {desc}".lower()
         if any(kw in text for kw in IRRELEVANT):
             continue
         result.append({
-            "title": a.get("title", ""),
-            "source": a.get("source", {}).get("name", ""),
-            "description": a.get("description", ""),
-            "url": a.get("url", ""),
-            "publishedAt": a.get("publishedAt", ""),
+            "title": title,
+            "source": a.get("source_id", "") or "",
+            "description": desc,
+            "url": a.get("link", "") or "",
+            "publishedAt": a.get("pubDate", "") or "",
         })
     return result
 
 
-def fetch_news(news_api_key: str) -> dict:
+def load_seen() -> list[dict]:
+    try:
+        return json.loads(SEEN_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+
+
+def is_fresh(article: dict, cutoff: datetime) -> bool:
+    try:
+        pub = datetime.strptime(article["publishedAt"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        return pub > cutoff
+    except (ValueError, KeyError):
+        return False
+
+
+def fetch_fresh_new_news(news_key: str) -> dict:
+    seen_urls = {a["url"] for a in load_seen() if a.get("url")}
+    cutoff_48h = datetime.now(timezone.utc) - timedelta(hours=48)
+
+    ireland = _fetch("Ireland", news_key)
+    world = _fetch("eurozone OR ECB OR inflation", news_key)
+
+    def is_new(article: dict) -> bool:
+        return bool(article.get("url")) and article["url"] not in seen_urls
+
+    fresh_ireland = [a for a in ireland if is_fresh(a, cutoff_48h) and is_new(a)]
+    fresh_world = [a for a in world if is_fresh(a, cutoff_48h) and is_new(a)]
+
     return {
         "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "ireland": _fetch(IRELAND_QUERY, news_api_key),
-        "global": _fetch(GLOBAL_QUERY, news_api_key),
+        "ireland": fresh_ireland,
+        "world": fresh_world,
     }
+
+
+def update_seen(used_articles: list[dict]) -> None:
+    seen = load_seen()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    for a in used_articles:
+        seen.append({"url": a["url"], "title": a["title"], "publishedAt": a["publishedAt"], "used_date": today})
+
+    cutoff = datetime.now(timezone.utc).timestamp() - 30 * 86400
+
+    def keep(entry: dict) -> bool:
+        try:
+            d = datetime.strptime(entry["used_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            return d.timestamp() > cutoff
+        except Exception:
+            return True
+
+    seen = [e for e in seen if keep(e)]
+    SEEN_PATH.parent.mkdir(exist_ok=True)
+    SEEN_PATH.write_text(json.dumps(seen, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 # ── Claude API ────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """Você é um analista econômico especializado em Irlanda, escrevendo para imigrantes brasileiros.
-Sua tarefa é transformar as notícias fornecidas em um relatório estruturado em Português Brasileiro.
+SYSTEM_PROMPT = """Você é o autor da newsletter "Irlanda em Foco", escrita para imigrantes brasileiros na Irlanda.
+Sua tarefa é transformar as notícias fornecidas numa edição curta e escaneável em Português Brasileiro.
 
 Sua resposta deve começar EXATAMENTE com duas linhas assim, antes de qualquer outra coisa:
 
-TITULO: [manchete factual sobre o fato mais relevante da semana, no estilo de título jornalístico — não genérico. Máximo 70 caracteres. Exemplo real: "Aluguel em Dublin sobe 8% e desemprego em tech chega a 5%"]
+TITULO: [manchete factual sobre o fato mais relevante da edição, estilo jornalístico — não genérico. Máximo 70 caracteres. Exemplo real: "Aluguel em Dublin sobe 8% e desemprego em tech chega a 5%"]
 DESCRICAO: [resumo do fato mais importante para meta description, 120 a 155 caracteres, frase completa]
 
-Depois de uma linha em branco, o corpo do relatório deve seguir EXATAMENTE este formato markdown (sem repetir título ou data como cabeçalho — isso já fica no frontmatter da página):
+Depois de uma linha em branco, o corpo deve seguir EXATAMENTE este formato markdown (sem repetir título ou data como cabeçalho — isso já fica no frontmatter da página):
 
-## Economia Irlandesa
-
-### Visão Geral
-[2-3 parágrafos sobre o estado da economia irlandesa com base nas notícias]
-
-### Mercado de Trabalho
-- **Em alta:** [setores contratando]
-- **Em queda / atenção:** [setores com demissões ou desaceleração]
-- **Taxa de desemprego:** [dado mais recente ou "Não disponível esta semana"]
-- **Notícias relevantes:**
-  - [Título traduzido] — Fonte | Data
-
-### Habitação e Custo de Vida
-- **Aluguel:** [tendência]
-- **Inflação geral:** [tendência]
-- **Medidas do governo:** [políticas relevantes]
-- **Notícias relevantes:**
-  - [Título traduzido] — Fonte | Data
-
-### Imigração e Vistos
-- **Critical Skills Permit:** [mudanças ou "Nenhuma atualização esta semana"]
-- **General Employment Permit:** [atualizações ou "Nenhuma atualização esta semana"]
-- **IRP (Irish Residence Permit):** [prazos, mudanças ou "Nenhuma atualização esta semana"]
-- **Notícias relevantes:** [se houver]
-- **Fonte oficial:** [link para a página correspondente em Citizens Information ou no site do Departamento de Justiça — obrigatório sempre que houver qualquer afirmação sobre lei, visto ou prazo nesta seção]
+Bom dia! Aqui está o que você precisa saber hoje sobre a economia da Irlanda e do mundo.
 
 ---
 
-## Panorama da Economia Mundial
+## 🇮🇪 Irlanda
 
-### Destaques Globais
-[2 parágrafos sobre economia mundial com foco no que afeta a Irlanda/Europa]
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
 
-### Zona do Euro
-- **BCE — Taxa de juros:** [decisão ou expectativa]
-- **Inflação na Eurozona:** [tendência]
-- **Crescimento do PIB da UE:** [dado ou projeção]
-- **Notícias relevantes:**
-  - [Título traduzido] — Fonte | Data
+## 🌍 Mundo
 
-### Tendências Globais que Afetam a Irlanda
-- [Ponto 1]
-- [Ponto 2]
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
 
 ---
 
-## O Que Isso Significa Para Você — Imigrante Brasileiro na Irlanda
+## 💡 O que isso significa pra você
 
-### Oportunidades
-- [Oportunidade concreta 1]
-- [Oportunidade concreta 2]
-
-### Pontos de Atenção
-- [Alerta prático 1]
-- [Alerta prático 2]
-
-### Resumo Executivo (TL;DR)
-- [Fato mais importante sobre Irlanda esta semana]
-- [Fato mais importante sobre economia global]
-- [Ação recomendada para o imigrante brasileiro]
-- [Tendência a acompanhar nas próximas semanas]
+- [1 bullet de implicação prática para o imigrante brasileiro na Irlanda]
+- [1 bullet de implicação prática para o imigrante brasileiro na Irlanda]
 
 ---
 
-*Fontes consultadas: [lista]*
-*Dados baseados em notícias publicadas entre {DATA_INICIO} e {DATA_FIM}.*
+*Fontes desta edição: [liste só as fontes realmente usadas]*
 
-*Pesquisa e primeira versão com apoio de IA, revisado e editado por Michell Lago.*
-
-*Este conteúdo é informativo e não constitui aconselhamento jurídico ou financeiro. Confirme sempre as informações nos canais oficiais antes de tomar qualquer decisão.*
+*Pesquisa e primeira versão com apoio de IA, publicação automática.*
 
 REGRAS:
 - Escreva TODO o conteúdo em Português Brasileiro
 - Traduza os títulos das notícias para PT-BR ao citá-los
-- Se não houver notícias para uma seção, escreva: "Nenhuma atualização significativa esta semana nesta área."
+- Se só houver notícias de Irlanda (ou só de Mundo), omita a seção vazia em vez de forçar conteúdo
 - NÃO invente dados. Use apenas o que está nas notícias fornecidas
-- Seja direto e prático, sem jargões excessivos
-- TODA afirmação sobre lei, visto ou prazo (mudança de legislação, prazo de naturalização, regras de permit, etc.) precisa vir acompanhada de link para a fonte primária oficial: Citizens Information (citizensinformation.ie), Departamento de Justiça (gov.ie/en/organisation/department-of-justice), Banco Central Europeu (ecb.europa.eu) ou CSO (cso.ie). NÃO cite um portal secundário (jornal, blog) como fonte de uma afirmação legal — use o jornal só para o fato do noticiário, e a fonte oficial para a regra em si. Se não houver fonte oficial confirmável na notícia fornecida, escreva a afirmação como "segundo [veículo]" e não a apresente como fato confirmado
-- O TITULO nunca pode ser genérico ("Análise Econômica — [data]"). Precisa nomear o fato mais relevante da semana"""
+- Se houver artigos com título muito parecido (a mesma notícia repetida por vários veículos), trate como uma coisa só — não repita o mesmo fato várias vezes
+- Mantenha os bullets curtos — isso é uma newsletter, não um relatório longo
+- NÃO afirme regras específicas de visto, IRP ou permits (Critical Skills, General Employment, etc.) a menos que a notícia fornecida já cite a fonte oficial (Citizens Information, Departamento de Justiça) — se a notícia só menciona o tema sem fonte oficial, trate como "segundo [veículo]" e não como fato confirmado, ou omita
+- O TITULO nunca pode ser genérico ("Irlanda em Foco — [data]"). Precisa nomear o fato mais relevante da edição"""
 
 
-def generate_report(news: dict, anthropic_api_key: str) -> str:
+def generate_post(news: dict, anthropic_api_key: str) -> str:
     today = datetime.now(timezone.utc)
     data_str = today.strftime("%d de %B de %Y").replace(
         "January", "Janeiro").replace("February", "Fevereiro").replace(
@@ -205,18 +201,18 @@ def generate_report(news: dict, anthropic_api_key: str) -> str:
     user_content = f"""Data de hoje: {data_str}
 Hora da coleta: {news['fetched_at']}
 
-=== NOTÍCIAS SOBRE A IRLANDA ===
+=== NOTÍCIAS SOBRE A IRLANDA (só as genuinamente novas e recentes) ===
 {json.dumps(news['ireland'], ensure_ascii=False, indent=2)}
 
-=== NOTÍCIAS GLOBAIS ===
-{json.dumps(news['global'], ensure_ascii=False, indent=2)}
+=== NOTÍCIAS GLOBAIS (só as genuinamente novas e recentes) ===
+{json.dumps(news['world'], ensure_ascii=False, indent=2)}
 
-Gere o relatório completo seguindo o formato do sistema."""
+Gere a edição completa seguindo o formato do sistema."""
 
     client = anthropic.Anthropic(api_key=anthropic_api_key)
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4096,
+        max_tokens=2048,
         system=[
             {
                 "type": "text",
@@ -230,7 +226,6 @@ Gere o relatório completo seguindo o formato do sistema."""
 
 
 def parse_title_and_description(report: str) -> tuple[str, str, str]:
-    """Extrai TITULO/DESCRICAO das duas primeiras linhas e devolve (titulo, descricao, corpo_restante)."""
     lines = report.strip().split("\n")
     if len(lines) < 2 or not lines[0].startswith("TITULO:") or not lines[1].startswith("DESCRICAO:"):
         print("Erro: resposta do Claude não começou com TITULO:/DESCRICAO: como exigido.", file=sys.stderr)
@@ -248,27 +243,34 @@ def yaml_quote(value: str) -> str:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    news_key = os.environ.get("NEWS_API_KEY", "")
+    news_key = os.environ.get("NEWSDATA_API_KEY", "")
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
     if not news_key:
-        print("Erro: NEWS_API_KEY não definida.", file=sys.stderr)
+        print("Erro: NEWSDATA_API_KEY não definida.", file=sys.stderr)
         sys.exit(1)
     if not anthropic_key:
         print("Erro: ANTHROPIC_API_KEY não definida.", file=sys.stderr)
         sys.exit(1)
 
-    print("Buscando notícias...", file=sys.stderr)
-    news = fetch_news(news_key)
-    print(f"  {len(news['ireland'])} notícias da Irlanda", file=sys.stderr)
-    print(f"  {len(news['global'])} notícias globais", file=sys.stderr)
+    slug = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out_path = POSTS_DIR / f"{slug}.md"
+    if out_path.exists():
+        print(f"Edição de hoje já existe em {out_path}, encerrando.", file=sys.stderr)
+        return
 
-    print("Gerando relatório com Claude...", file=sys.stderr)
-    report_raw = generate_report(news, anthropic_key)
+    print("Buscando notícias novas e inéditas...", file=sys.stderr)
+    news = fetch_fresh_new_news(news_key)
+    total = len(news["ireland"]) + len(news["world"])
+    print(f"  {len(news['ireland'])} da Irlanda + {len(news['world'])} do mundo = {total}", file=sys.stderr)
+
+    if total < 2:
+        print("SKIP: menos de 2 artigos novos e inéditos nas últimas 48h. Sem edição hoje.", file=sys.stderr)
+        return
+
+    print("Gerando edição com Claude...", file=sys.stderr)
+    report_raw = generate_post(news, anthropic_key)
     titulo, descricao, report_body = parse_title_and_description(report_raw)
-
-    today = datetime.now(timezone.utc)
-    slug = today.strftime("%Y-%m-%d")
 
     frontmatter = (
         "---\n"
@@ -279,12 +281,12 @@ def main():
     )
     final = frontmatter + report_body
 
-    posts_dir = Path(__file__).parent.parent / "posts"
-    posts_dir.mkdir(exist_ok=True)
-    out_path = posts_dir / f"{slug}.md"
+    POSTS_DIR.mkdir(exist_ok=True)
     out_path.write_text(final, encoding="utf-8")
+    print(f"Edição salva em: {out_path}", file=sys.stderr)
 
-    print(f"Relatório salvo em: {out_path}", file=sys.stderr)
+    update_seen(news["ireland"] + news["world"])
+    print(f"seen-articles.json atualizado.", file=sys.stderr)
 
 
 if __name__ == "__main__":

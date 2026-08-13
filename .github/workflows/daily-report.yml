@@ -1,0 +1,54 @@
+name: Gerar Edição Diária
+
+on:
+  schedule:
+    # todo dia às 7h UTC (8h Irlanda)
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências Python
+        run: pip install anthropic certifi
+
+      - name: Gerar edição (pula sozinho se não houver novidade suficiente)
+        env:
+          NEWSDATA_API_KEY: ${{ secrets.NEWSDATA_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/generate_report.py
+
+      - name: Commitar e publicar (só se uma edição nova foi criada)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          if [ ! -f "posts/${TODAY}.md" ]; then
+            echo "Nenhuma edição nova hoje, nada a publicar."
+            exit 0
+          fi
+
+          git config user.email "bot@irlandaparabrasileiros.com"
+          git config user.name "Bot Irlanda"
+          git add "posts/${TODAY}.md" data/seen-articles.json
+          git commit -m "edicao: ${TODAY}"
+          git push origin main
+
+          npx vercel --prod --token "$VERCEL_TOKEN" --yes
+          DEPLOY_URL=$(curl -s "https://api.vercel.com/v6/deployments?projectId=prj_Bch8MSMJbXhS47CygrgRIHGItaoa&teamId=team_WsvP475j6A3Vg8XfLNTJlgBN&limit=1" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "import json,sys; print('https://' + json.load(sys.stdin)['deployments'][0]['url'])")
+          echo "Deploy: $DEPLOY_URL"
+          npx vercel alias set "$DEPLOY_URL" irlandaparabrasileiros.vercel.app --token "$VERCEL_TOKEN"
