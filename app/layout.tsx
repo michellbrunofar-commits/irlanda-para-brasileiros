@@ -3,9 +3,17 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://irlandaparabrasileiros.vercel.app"),
   title: "Irlanda para Brasileiros",
   description:
     "Newsletter econômica da Irlanda para imigrantes brasileiros — publicada quando tem novidade de verdade.",
+  icons: { icon: "/logo-icon.png" },
+  openGraph: {
+    title: "Irlanda para Brasileiros",
+    description:
+      "Newsletter econômica da Irlanda para imigrantes brasileiros — publicada quando tem novidade de verdade.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
@@ -80,6 +88,12 @@ export default function RootLayout({
                 className="inline-block mt-2 text-xs font-semibold text-ireland-green hover:text-ireland-orange transition-colors"
               >
                 Quer estudar na Irlanda? Conheça a Go Sem Fronteiras →
+              </a>
+              <a
+                href="https://realflow-eight.vercel.app"
+                className="block mt-1 text-xs font-semibold text-ireland-green hover:text-ireland-orange transition-colors"
+              >
+                Já mora na Irlanda? Controle suas finanças com o RealFlow →
               </a>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-400 pt-4 border-t border-gray-100">
