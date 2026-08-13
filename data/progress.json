@@ -1,0 +1,60 @@
+{
+  "updated_at": "2026-08-13T14:30:00Z",
+  "summary": "Projeto de qualidade iniciado. Automação de publicação corrigida (GitHub Actions). Começando pela qualidade da escrita/reportagem.",
+  "pieces": [
+    {
+      "id": "conteudo",
+      "name": "Qualidade da escrita e reportagem",
+      "description": "O prompt que gera cada edição — hierarquia, precisão, tom, nível BBC News",
+      "status": "in_progress",
+      "round": 0,
+      "max_rounds": 8,
+      "note": "Gerando primeira amostra local para avaliação do crítico"
+    },
+    {
+      "id": "leitura",
+      "name": "Experiência de leitura de uma edição",
+      "description": "Página /relatorio/[slug] — hierarquia visual, tipografia, escaneabilidade",
+      "status": "not_started",
+      "round": 0,
+      "max_rounds": 8,
+      "note": null
+    },
+    {
+      "id": "home-arquivo",
+      "name": "Home e arquivo de edições",
+      "description": "Como as edições anteriores são navegadas e descobertas",
+      "status": "not_started",
+      "round": 0,
+      "max_rounds": 8,
+      "note": null
+    },
+    {
+      "id": "confianca",
+      "name": "Sinais de confiança",
+      "description": "Sourcing visível, política de correções, sobre/metodologia",
+      "status": "not_started",
+      "round": 0,
+      "max_rounds": 8,
+      "note": null
+    },
+    {
+      "id": "navegacao",
+      "name": "Navegação e arquitetura do site",
+      "description": "Como home, arquivo, guia e captura se conectam",
+      "status": "not_started",
+      "round": 0,
+      "max_rounds": 8,
+      "note": null
+    },
+    {
+      "id": "mobile",
+      "name": "Experiência mobile",
+      "description": "A maioria dos leitores provavelmente lê pelo celular",
+      "status": "not_started",
+      "round": 0,
+      "max_rounds": 8,
+      "note": null
+    }
+  ]
+}
