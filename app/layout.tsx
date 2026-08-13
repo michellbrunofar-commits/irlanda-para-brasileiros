@@ -100,7 +100,7 @@ export default function RootLayout({
               <span className="flex items-center gap-1.5">
                 🇮🇪 <span className="font-medium text-ireland-green">Irlanda para Brasileiros</span>
               </span>
-              <span>Pesquisa com apoio de IA, revisado por Michell Lago · News API</span>
+              <span>Pesquisa e redação 100% automáticas com apoio de IA</span>
             </div>
           </div>
         </footer>

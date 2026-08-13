@@ -234,7 +234,7 @@ Bom dia! Aqui está o que você precisa saber hoje [se houver conteúdo de Irlan
 
 *Fontes desta edição: [liste só as fontes realmente usadas]*
 
-*Pesquisa e primeira versão com apoio de IA, publicação automática.*
+*Pesquisa e redação 100% automáticas com apoio de IA — sem revisão humana antes de publicar.*
 
 REGRAS:
 - Escreva TODO o conteúdo em Português Brasileiro

@@ -70,19 +70,17 @@ export default async function ReportPage({
               {post.description}
             </p>
           )}
+          <p className="mt-4 text-xs text-white/60">
+            Pesquisa e redação 100% automáticas com apoio de IA · sem revisão humana antes de publicar
+          </p>
         </div>
 
-        {/* Brazil stripe */}
-        <div className="absolute bottom-0 left-0 right-0 flex h-1">
+        {/* Brazil stripe — único elemento decorativo do cabeçalho, sem repetir mais abaixo */}
+        <div className="absolute bottom-0 left-0 right-0 flex h-1.5">
           <div className="flex-1 bg-brazil-green" />
           <div className="flex-1 bg-brazil-yellow" />
           <div className="flex-1 bg-brazil-blue" />
         </div>
-      </div>
-
-      {/* Captura de e-mail — topo */}
-      <div className="mb-8">
-        <NewsletterForm id="topo" />
       </div>
 
       {/* Report content */}
@@ -103,28 +101,28 @@ export default async function ReportPage({
         Até a próxima edição — só publicamos quando tem novidade de verdade.
       </p>
 
-      {/* Ponte com a Go Sem Fronteiras */}
-      <div className="mt-10 rounded-2xl border border-ireland-green/20 bg-ireland-green-light px-6 py-6">
-        <p className="text-sm font-bold text-ireland-green uppercase tracking-wide mb-2">
+      {/* Captura de e-mail */}
+      <div className="mt-10">
+        <NewsletterForm id="fim" />
+      </div>
+
+      {/* Ponte com a Go Sem Fronteiras — visualmente separada da newsletter (borda neutra, sem preenchimento verde) */}
+      <div className="mt-6 rounded-2xl border border-gray-200 px-6 py-5">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
           Pensando no próximo passo?
         </p>
-        <p className="text-gray-700 leading-relaxed mb-4">
+        <p className="text-gray-600 text-sm leading-relaxed mb-3">
           Um mestrado numa universidade irlandesa dá direito ao Stamp 1G — até 24 meses de
           autorização de trabalho em tempo integral depois de formado. A Go Sem Fronteiras faz um
           diagnóstico gratuito de 30 minutos para avaliar o seu caso.
         </p>
         <a
           href="https://gosemfronteiras.vercel.app/bio"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ireland-green hover:text-ireland-orange transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ireland-orange hover:text-ireland-green transition-colors"
         >
           Falar com a Go Sem Fronteiras
           <span aria-hidden="true">→</span>
         </a>
-      </div>
-
-      {/* Captura de e-mail — fim */}
-      <div className="mt-6">
-        <NewsletterForm id="fim" />
       </div>
     </div>
   );
