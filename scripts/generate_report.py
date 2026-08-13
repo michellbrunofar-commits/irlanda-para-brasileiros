@@ -13,6 +13,7 @@ Required env vars:
 
 import json
 import os
+import re
 import ssl
 import sys
 import urllib.error
@@ -42,6 +43,35 @@ IRRELEVANT = [
     "celebrity", "entertainment", "oscar", "grammy", "film", "movie",
     "tv show", "reality show", "singer", "actor", "actress",
 ]
+
+
+def fetch_article_text(url: str, max_chars: int = 4000) -> str:
+    """Busca o HTML da notícia original e extrai texto legível (best-effort).
+
+    NewsData.io no plano free costuma mandar `description` vazio ou truncado
+    demais pra escrever com precisão (números, nuance de "planeja" vs "fez",
+    contexto tipo "empresa já estava em recuperação judicial há meses"). Ter
+    o texto completo do artigo original resolve isso na maioria dos casos.
+    Falha silenciosamente (retorna "") se o site bloquear ou der timeout —
+    nesse caso o gerador cai de volta pro description curto da API.
+    """
+    if not url:
+        return ""
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; IrlandaEmFocoBot/1.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=8, context=SSL_CTX) as r:
+            raw = r.read(300_000).decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+    raw = re.sub(r"<script.*?</script>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
+    raw = re.sub(r"<style.*?</style>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", raw)
+    text = re.sub(r"&amp;", "&", text)
+    text = re.sub(r"&nbsp;", " ", text)
+    text = re.sub(r"&#?\w+;", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:max_chars]
 
 # ── NewsData.io ──────────────────────────────────────────────────────────────
 # qInTitle tem limite de tamanho da API — por isso termos curtos, sem aspas.
@@ -130,6 +160,16 @@ def fetch_fresh_new_news(news_key: str) -> dict:
     fresh_ireland = [a for a in ireland if is_fresh(a, cutoff_48h) and is_new(a)]
     fresh_world = [a for a in world if is_fresh(a, cutoff_48h) and is_new(a)]
 
+    # Enriquecer com o texto completo do artigo original — o `description` da
+    # NewsData.io no plano free costuma ser curto/vazio demais pra escrever
+    # com precisão (números exatos, nuance tipo "empresa já estava em
+    # recuperação judicial há meses"). Falha por artigo é ignorada (fica só
+    # com o description curto nesse caso) — não derruba o script inteiro.
+    for a in fresh_ireland + fresh_world:
+        full_text = fetch_article_text(a["url"])
+        if full_text:
+            a["full_text"] = full_text
+
     return {
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "ireland": fresh_ireland,
@@ -169,19 +209,19 @@ DESCRICAO: [resumo do fato mais importante para meta description, 120 a 155 cara
 
 Depois de uma linha em branco, o corpo deve seguir EXATAMENTE este formato markdown (sem repetir título ou data como cabeçalho — isso já fica no frontmatter da página):
 
-Bom dia! Aqui está o que você precisa saber hoje sobre a economia da Irlanda e do mundo.
+Bom dia! Aqui está o que você precisa saber hoje [se houver conteúdo de Irlanda E de Mundo: "sobre a economia da Irlanda e do mundo"] [se só houver Irlanda: "sobre a economia da Irlanda"] [se só houver Mundo: "sobre a economia mundial"].
 
 ---
 
 ## 🇮🇪 Irlanda
 
-- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
-- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[[Fonte]]([url da notícia]), [data]_
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[[Fonte]]([url da notícia]), [data]_
 
 ## 🌍 Mundo
 
-- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
-- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[Fonte], [data]_
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[[Fonte]]([url da notícia]), [data]_
+- **[Manchete traduzida]** — resumo direto em 1-2 frases. _[[Fonte]]([url da notícia]), [data]_
 
 ---
 
@@ -200,7 +240,7 @@ REGRAS:
 - Escreva TODO o conteúdo em Português Brasileiro
 - Traduza os títulos das notícias para PT-BR ao citá-los
 - Se só houver notícias de Irlanda (ou só de Mundo), omita a seção vazia em vez de forçar conteúdo
-- NÃO invente dados. Use apenas o que está nas notícias fornecidas
+- NÃO invente dados. Use apenas o que está nas notícias fornecidas — quando um item tiver o campo `full_text` (texto completo do artigo original), prefira ele ao `description` (que costuma vir curto/vazio) pra pegar números exatos e contexto que mudam o sentido da notícia (ex.: uma empresa "fechou de repente" pode na verdade já estar em recuperação judicial há meses — isso só aparece no texto completo, não no resumo)
 - Se houver artigos com título muito parecido (a mesma notícia repetida por vários veículos), trate como uma coisa só — não repita o mesmo fato várias vezes
 - Mantenha os bullets curtos — isso é uma newsletter, não um relatório longo
 - NÃO afirme regras específicas de visto, IRP ou permits (Critical Skills, General Employment, etc.) a menos que a notícia fornecida já cite a fonte oficial (Citizens Information, Departamento de Justiça) — se a notícia só menciona o tema sem fonte oficial, trate como "segundo [veículo]" e não como fato confirmado, ou omita
@@ -210,7 +250,12 @@ REGRAS:
 - Bullets vagos sem conteúdo verificável (ex.: "9 empresas estão contratando" sem nomear nenhuma) são proibidos — ou cite pelo menos 1-2 exemplos concretos (nome da empresa/cargo) que estejam na notícia fornecida, ou omita o bullet inteiro
 - TESTE DA RELEVÂNCIA: cada item selecionado precisa passar o teste "por que isso importa pra você" com um mecanismo concreto e SEM ressalva — aluguel, salário, vaga de emprego, câmbio EUR/BRL, IRP/visto, ou custo de vida direto. Se você só consegue justificar a inclusão com uma ressalva tipo "ainda não está claro se isso afeta..." ou "não é bem a mesma coisa, mas...", CORTE o item em vez de publicar com a ressalva. Notícia de banco central que não é do BCE/Irlanda só entra se tiver um link explícito e calculável com a zona do euro — não basta ser "sobre economia"
 - COBERTURA MÍNIMA: dado que as notícias de Irlanda já vêm filtradas por aluguel/moradia, emprego e economia geral, priorize ter pelo menos 1 item sobre moradia/aluguel OU emprego na seção Irlanda quando houver algo disponível nesses temas — são os que mais afetam o leitor no dia a dia. Só recorra a notícia de economia geral da Irlanda se genuinamente não houver nada de moradia/emprego disponível
-- TESTE DA MODALIDADE: o verbo em português precisa ter exatamente a mesma certeza que a fonte original. Se a notícia diz "planeja criar", "pode criar", "sujeito a aprovação", "pretende", "vai pedir permissão para" — NUNCA escreva como se já tivesse acontecido ("criou", "confirmou", "abriu vagas"). Vagas de emprego anunciadas como projeto/plano futuro (comum em notícia de expansão de empresa) DEVEM manter o verbo no futuro/condicional em português ("a empresa planeja criar até X vagas, sujeito a aprovação de...") — nunca vire manchete de fato consumado"""
+- TESTE DA MODALIDADE: o verbo em português precisa ter exatamente a mesma certeza que a fonte original. Se a notícia diz "planeja criar", "pode criar", "sujeito a aprovação", "pretende", "vai pedir permissão para" — NUNCA escreva como se já tivesse acontecido ("criou", "confirmou", "abriu vagas"). Vagas de emprego anunciadas como projeto/plano futuro (comum em notícia de expansão de empresa) DEVEM manter o verbo no futuro/condicional em português ("a empresa planeja criar até X vagas, sujeito a aprovação de...") — nunca vire manchete de fato consumado
+- ÂNGULO DO IMIGRANTE: o leitor não é um candidato irlandês genérico — ele frequentemente precisa de patrocínio de visto/permit de trabalho (Critical Skills Permit, General Employment Permit) pra ser contratado. Sempre que citar vagas de emprego específicas, SE a notícia fornecida mencionar (ou você souber com certeza pela empresa/setor) se a vaga costuma exigir cidadania UE/EEE ou aceita patrocínio de visto, inclua essa informação em 1 frase curta. Se a notícia não der esse dado, NÃO invente — pode citar a vaga normalmente sem essa informação, só não finja que ela existe
+- CITAÇÃO VERIFICÁVEL: toda fonte citada precisa ser um link markdown de verdade usando a URL exata do campo `url` da notícia fornecida — nunca cite "Fonte: [nome]" sem link. Isso permite que qualquer leitor (ou editor) confira a notícia original com 1 clique, sem precisar confiar cegamente na citação
+- Frases com números que podem gerar ambiguidade (ex.: preço por pessoa vs. preço total, "compartilhar cama" vs. "compartilhar quarto") precisam ser reescritas de um jeito que não deixe dúvida de leitura na primeira passada — releia cada bullet como se fosse a primeira vez lendo, sem o contexto de quem escreveu
+- Se um anúncio/vaga/oferta citado tiver restrição de elegibilidade relevante (ex.: "só para mulheres", "só para EU/EEA", "só CV em inglês"), inclua isso entre parênteses — evita que o leitor perca tempo com algo que não se aplica a ele
+- A saudação de abertura deve refletir o conteúdo real da edição (não prometer "Irlanda e mundo" se só houver uma das duas seções) — use a variação certa entre as opções descritas no formato acima"""
 
 
 def generate_post(news: dict, anthropic_api_key: str) -> str:
