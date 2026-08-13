@@ -1,15 +1,15 @@
 {
-  "updated_at": "2026-08-13T14:30:00Z",
-  "summary": "Projeto de qualidade iniciado. Automação de publicação corrigida (GitHub Actions). Começando pela qualidade da escrita/reportagem.",
+  "updated_at": "2026-08-13T16:10:00Z",
+  "summary": "Automação de publicação corrigida (GitHub Actions, aguardando secrets do Michell). Peça 1 (escrita/reportagem) em rodada 4 de melhoria.",
   "pieces": [
     {
       "id": "conteudo",
       "name": "Qualidade da escrita e reportagem",
       "description": "O prompt que gera cada edição — hierarquia, precisão, tom, nível BBC News",
       "status": "in_progress",
-      "round": 0,
+      "round": 3,
       "max_rounds": 8,
-      "note": "Gerando primeira amostra local para avaliação do crítico"
+      "note": "R1: perdeu (causalidade sem base, ex. Fed→hipoteca irlandesa). R2: perdeu (notícia correta mas irrelevante pro leitor). R3: perdeu por pouco (verbo 'criou' vagas que na fonte real eram só 'planeja criar, sujeito a aprovação'). Corrigindo modalidade e indo pra rodada 4."
     },
     {
       "id": "leitura",

@@ -49,10 +49,13 @@ IRRELEVANT = [
 NEWSDATA_BASE = "https://newsdata.io/api/1/latest"
 
 
-def _fetch(q_in_title: str, api_key: str) -> list[dict]:
-    params = urllib.parse.urlencode({
-        "qInTitle": q_in_title, "category": "business", "language": "en", "apikey": api_key,
-    })
+def _fetch(q_in_title: str, api_key: str, country: str | None = None, category: str | None = "business") -> list[dict]:
+    params_dict = {"qInTitle": q_in_title, "language": "en", "apikey": api_key}
+    if category:
+        params_dict["category"] = category
+    if country:
+        params_dict["country"] = country
+    params = urllib.parse.urlencode(params_dict)
     url = f"{NEWSDATA_BASE}?{params}"
     try:
         with urllib.request.urlopen(url, timeout=15, context=SSL_CTX) as r:
@@ -102,7 +105,23 @@ def fetch_fresh_new_news(news_key: str) -> dict:
     seen_urls = {a["url"] for a in load_seen() if a.get("url")}
     cutoff_48h = datetime.now(timezone.utc) - timedelta(hours=48)
 
-    ireland = _fetch("Ireland", news_key)
+    # Consultas separadas e específicas pros temas que mais importam pro leitor
+    # (aluguel/moradia, emprego, custo de vida) em vez de só "Ireland" genérico,
+    # que trazia demais notícia de negócio corporativo pouco relevante.
+    # IMPORTANTE: qInTitle do NewsData.io só funciona bem com termos de UMA palavra
+    # separados por OR — frases de várias palavras ("Ireland rent") retornam 0
+    # resultados mesmo quando existem artigos relevantes. Por isso usamos country=ie
+    # + termos soltos em vez de frases.
+    ireland_housing = _fetch("rent OR housing", news_key, country="ie", category=None)
+    ireland_jobs = _fetch("jobs OR unemployment OR hiring", news_key, country="ie", category=None)
+    ireland_general = _fetch("Ireland", news_key, category="business")
+    seen_ids = set()
+    ireland = []
+    for a in ireland_housing + ireland_jobs + ireland_general:
+        if a["url"] and a["url"] not in seen_ids:
+            seen_ids.add(a["url"])
+            ireland.append(a)
+
     world = _fetch("eurozone OR ECB OR inflation", news_key)
 
     def is_new(article: dict) -> bool:
@@ -185,7 +204,13 @@ REGRAS:
 - Se houver artigos com título muito parecido (a mesma notícia repetida por vários veículos), trate como uma coisa só — não repita o mesmo fato várias vezes
 - Mantenha os bullets curtos — isso é uma newsletter, não um relatório longo
 - NÃO afirme regras específicas de visto, IRP ou permits (Critical Skills, General Employment, etc.) a menos que a notícia fornecida já cite a fonte oficial (Citizens Information, Departamento de Justiça) — se a notícia só menciona o tema sem fonte oficial, trate como "segundo [veículo]" e não como fato confirmado, ou omita
-- O TITULO nunca pode ser genérico ("Irlanda em Foco — [data]"). Precisa nomear o fato mais relevante da edição"""
+- O TITULO nunca pode ser genérico ("Irlanda em Foco — [data]"). Precisa nomear o fato mais relevante da edição
+- TESTE DO NÚMERO: toda afirmação de tendência ("subiu", "recuperou", "acelerou", "caiu") precisa carregar o número primário entre parênteses no mesmo bullet (ex.: "PMI subiu para 54,2 pontos, de 51,8 em junho"). Se a notícia fornecida não dá o número, reescreva o bullet pra citar só o que é verificável, ou corte o bullet
+- TESTE DA JURISDIÇÃO: na seção "O que isso significa pra você", qualquer causalidade entre política monetária e custo de vida na Irlanda só pode ser afirmada se a notícia citada for sobre o BCE/Irlanda especificamente — NUNCA infira consequência pra Irlanda a partir de dado do Fed/EUA (são bancos centrais diferentes, hipotecas irlandesas são precificadas pelo BCE). Se a notícia é sobre o Fed/EUA, a implicação pra Irlanda deve virar pergunta em aberto ("ainda não está claro se isso afeta a zona do euro") em vez de afirmação direta, ou seja omitida
+- Bullets vagos sem conteúdo verificável (ex.: "9 empresas estão contratando" sem nomear nenhuma) são proibidos — ou cite pelo menos 1-2 exemplos concretos (nome da empresa/cargo) que estejam na notícia fornecida, ou omita o bullet inteiro
+- TESTE DA RELEVÂNCIA: cada item selecionado precisa passar o teste "por que isso importa pra você" com um mecanismo concreto e SEM ressalva — aluguel, salário, vaga de emprego, câmbio EUR/BRL, IRP/visto, ou custo de vida direto. Se você só consegue justificar a inclusão com uma ressalva tipo "ainda não está claro se isso afeta..." ou "não é bem a mesma coisa, mas...", CORTE o item em vez de publicar com a ressalva. Notícia de banco central que não é do BCE/Irlanda só entra se tiver um link explícito e calculável com a zona do euro — não basta ser "sobre economia"
+- COBERTURA MÍNIMA: dado que as notícias de Irlanda já vêm filtradas por aluguel/moradia, emprego e economia geral, priorize ter pelo menos 1 item sobre moradia/aluguel OU emprego na seção Irlanda quando houver algo disponível nesses temas — são os que mais afetam o leitor no dia a dia. Só recorra a notícia de economia geral da Irlanda se genuinamente não houver nada de moradia/emprego disponível
+- TESTE DA MODALIDADE: o verbo em português precisa ter exatamente a mesma certeza que a fonte original. Se a notícia diz "planeja criar", "pode criar", "sujeito a aprovação", "pretende", "vai pedir permissão para" — NUNCA escreva como se já tivesse acontecido ("criou", "confirmou", "abriu vagas"). Vagas de emprego anunciadas como projeto/plano futuro (comum em notícia de expansão de empresa) DEVEM manter o verbo no futuro/condicional em português ("a empresa planeja criar até X vagas, sujeito a aprovação de...") — nunca vire manchete de fato consumado"""
 
 
 def generate_post(news: dict, anthropic_api_key: str) -> str:
