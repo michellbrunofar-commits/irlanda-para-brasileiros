@@ -56,6 +56,12 @@ export default function RootLayout({
               </p>
             </a>
 
+            <nav className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-semibold text-white/70">
+              <a href="/" className="hover:text-white transition-colors">Início</a>
+              <a href="/estudar" className="hover:text-white transition-colors">Como estudar na Irlanda</a>
+              <a href="/sobre" className="hover:text-white transition-colors">Sobre</a>
+            </nav>
+
             <a
               href="https://gosemfronteiras.vercel.app"
               className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-white/80 hover:text-white transition-colors"

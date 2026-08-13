@@ -56,7 +56,7 @@ export default async function ReportPage({
         <div className="absolute right-20 bottom-2 text-4xl opacity-10 select-none">🇧🇷</div>
 
         <div className="relative">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center flex-wrap gap-2 mb-3">
             <span className="badge bg-white/20 text-white/90 backdrop-blur-sm">
               Edição
             </span>
@@ -104,25 +104,6 @@ export default async function ReportPage({
       {/* Captura de e-mail */}
       <div className="mt-10">
         <NewsletterForm id="fim" />
-      </div>
-
-      {/* Ponte com a Go Sem Fronteiras — visualmente separada da newsletter (borda neutra, sem preenchimento verde) */}
-      <div className="mt-6 rounded-2xl border border-gray-200 px-6 py-5">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-          Pensando no próximo passo?
-        </p>
-        <p className="text-gray-600 text-sm leading-relaxed mb-3">
-          Um mestrado numa universidade irlandesa dá direito ao Stamp 1G — até 24 meses de
-          autorização de trabalho em tempo integral depois de formado. A Go Sem Fronteiras faz um
-          diagnóstico gratuito de 30 minutos para avaliar o seu caso.
-        </p>
-        <a
-          href="https://gosemfronteiras.vercel.app/bio"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ireland-orange hover:text-ireland-green transition-colors"
-        >
-          Falar com a Go Sem Fronteiras
-          <span aria-hidden="true">→</span>
-        </a>
       </div>
     </div>
   );

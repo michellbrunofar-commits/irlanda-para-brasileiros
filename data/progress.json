@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-08-13T18:45:00Z",
-  "summary": "Automação de publicação corrigida (GitHub Actions, aguardando secrets do Michell). Peça 1 (escrita/reportagem) APROVADA na rodada 7 — crítico disse que empata ou supera o BBC News pro formato. Começando peça 2.",
+  "updated_at": "2026-08-13T21:20:00Z",
+  "summary": "Todas as 6 peças concluídas, mais uma passada de coerência final lendo o site como leitor. Automação diária pronta no GitHub Actions, só falta o Michell adicionar os 3 secrets.",
   "pieces": [
     {
       "id": "conteudo",
@@ -15,46 +15,50 @@
       "id": "leitura",
       "name": "Experiência de leitura de uma edição",
       "description": "Página /relatorio/[slug] — hierarquia visual, tipografia, escaneabilidade",
-      "status": "not_started",
-      "round": 0,
+      "status": "approved",
+      "round": 1,
       "max_rounds": 8,
-      "note": null
+      "note": "Removido CTA duplicado de captura de e-mail; caixa da Go Sem Fronteiras separada visualmente da newsletter; disclosure de IA honesto no masthead; na passada final, a caixa da Go Sem Fronteiras foi removida por ser redundante com o rodapé e virar non-sequitur em edições sem conteúdo de educação."
     },
     {
       "id": "home-arquivo",
       "name": "Home e arquivo de edições",
       "description": "Como as edições anteriores são navegadas e descobertas",
-      "status": "not_started",
-      "round": 0,
+      "status": "approved",
+      "round": 1,
       "max_rounds": 8,
-      "note": null
+      "note": "Removida a foto genérica (Picsum) do card de destaque, trocada pelo resumo real da edição pra escaneabilidade."
     },
     {
       "id": "confianca",
       "name": "Sinais de confiança",
       "description": "Sourcing visível, política de correções, sobre/metodologia",
-      "status": "not_started",
-      "round": 0,
+      "status": "approved",
+      "round": 1,
       "max_rounds": 8,
-      "note": null
+      "note": "Criada /sobre com transparência total: quem faz, como cada edição é gerada (100% automático, sem revisão humana), regras de qualidade seguidas, canal de correção via WhatsApp. Rodapé agora linka pra lá."
     },
     {
       "id": "navegacao",
       "name": "Navegação e arquitetura do site",
-      "description": "Como home, arquivo, guia e captura se conectam",
-      "status": "not_started",
-      "round": 0,
+      "description": "Como home, edição, sobre e guia de estudos se conectam",
+      "status": "approved",
+      "round": 1,
       "max_rounds": 8,
-      "note": null
+      "note": "Achado real: /estudar estava totalmente órfã, sem nenhum link interno apontando pra ela. Adicionado menu no cabeçalho (Início / Como estudar na Irlanda / Sobre) presente em todo o site."
     },
     {
       "id": "mobile",
       "name": "Experiência mobile",
       "description": "A maioria dos leitores provavelmente lê pelo celular",
-      "status": "not_started",
-      "round": 0,
+      "status": "approved",
+      "round": 1,
       "max_rounds": 8,
-      "note": null
+      "note": "Aumentado o alvo de toque dos campos e botão do formulário de e-mail (py-2 → py-2.5); flex-wrap nas fileiras de badges pra não quebrar em telas muito estreitas."
     }
-  ]
+  ],
+  "coerencia_final": {
+    "status": "done",
+    "note": "Agente fresco leu o site renderizado como imigrante brasileiro. Achados corrigidos: (1) edições antigas ainda diziam 'Análise Econômica', só as recentes diziam 'Irlanda em Foco' — renomeadas as 39 edições antigas pra manter um nome só; (2) meses capitalizados errado em 6 títulos de junho ('Junho' → 'junho'); (3) CTA da Go Sem Fronteiras aparecia duas vezes seguidas (caixa da edição + rodapé) — removida a caixa duplicada da página de edição."
+  }
 }

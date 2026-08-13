@@ -35,7 +35,7 @@ export default function Home() {
               <div className="report-card bg-gradient-to-br from-white to-ireland-green-light border-ireland-green/30 overflow-hidden">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center flex-wrap gap-2 mb-3">
                       <span className="badge bg-ireland-green text-white">
                         Mais recente
                       </span>

@@ -60,7 +60,7 @@ export default function NewsletterForm({ id }: { id: string }) {
           placeholder="Nome"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ireland-green"
+          className="flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ireland-green"
         />
         <label htmlFor={`${id}-email`} className="sr-only">E-mail</label>
         <input
@@ -70,12 +70,12 @@ export default function NewsletterForm({ id }: { id: string }) {
           placeholder="seu@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ireland-green"
+          className="flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ireland-green"
         />
         <button
           type="submit"
           disabled={status === "loading"}
-          className="rounded-lg bg-ireland-green px-4 py-2 text-sm font-semibold text-white hover:bg-ireland-green/90 transition-colors disabled:opacity-60"
+          className="rounded-lg bg-ireland-green px-4 py-2.5 text-sm font-semibold text-white hover:bg-ireland-green/90 transition-colors disabled:opacity-60"
         >
           {status === "loading" ? "Enviando..." : "Inscrever"}
         </button>
