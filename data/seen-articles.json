@@ -1,0 +1,32 @@
+[
+  {
+    "url": "https://www.irishtimes.com/business/",
+    "title": "Ireland GDP projected to contract 1% in 2026",
+    "publishedAt": "2026-08-13 07:00:00",
+    "used_date": "2026-08-13"
+  },
+  {
+    "url": "https://www.centralbank.ie/",
+    "title": "Average Irish mortgage rate 3.49% in June",
+    "publishedAt": "2026-08-13 07:00:00",
+    "used_date": "2026-08-13"
+  },
+  {
+    "url": "https://www.irishtimes.com/business/energy/",
+    "title": "Ireland solar capacity reaches 2.7GW with 297% growth since 2023",
+    "publishedAt": "2026-08-13 07:00:00",
+    "used_date": "2026-08-13"
+  },
+  {
+    "url": "https://ec.europa.eu/eurostat/web/products-euro-indicators/w/2-31072026-ap",
+    "title": "Euro area annual inflation up to 2.9% in July 2026",
+    "publishedAt": "2026-07-31 10:00:00",
+    "used_date": "2026-08-13"
+  },
+  {
+    "url": "https://www.ecb.europa.eu/press/pr/date/2026/html/ecb.mp260723~29f24d99bc.en.html",
+    "title": "ECB holds rates at 2.25% in July 2026 meeting",
+    "publishedAt": "2026-07-23 14:00:00",
+    "used_date": "2026-08-13"
+  }
+]
