@@ -18,9 +18,16 @@ export async function generateMetadata({
   return {
     title: post.title + " | Irlanda para Brasileiros",
     description: post.description || undefined,
+    alternates: {
+      canonical: `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}`,
+    },
     openGraph: {
       title: post.title,
       description: post.description || undefined,
+      type: "article",
+      publishedTime: post.date,
+      locale: "pt_BR",
+      images: ["/og-image.png"],
     },
   };
 }
