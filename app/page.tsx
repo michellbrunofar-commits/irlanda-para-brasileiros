@@ -33,17 +33,6 @@ export default function Home() {
           {latest && (
             <Link href={`/relatorio/${latest.slug}`} className="block group">
               <div className="report-card bg-gradient-to-br from-white to-ireland-green-light border-ireland-green/30 overflow-hidden">
-                {/* Thumbnail */}
-                <div className="relative -mx-6 -mt-6 mb-5 h-36 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://picsum.photos/seed/${latest.slug}-card/700/280`}
-                    alt=""
-                    aria-hidden="true"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80" />
-                </div>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
@@ -57,6 +46,11 @@ export default function Home() {
                     <h3 className="text-xl font-bold text-gray-900 leading-snug mb-2">
                       {latest.title}
                     </h3>
+                    {latest.description && (
+                      <p className="text-sm text-gray-500 leading-relaxed mb-3">
+                        {latest.description}
+                      </p>
+                    )}
                     <span className="text-ireland-green font-semibold text-sm group-hover:gap-2 flex items-center gap-1 transition-all">
                       Ler edição <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                     </span>
