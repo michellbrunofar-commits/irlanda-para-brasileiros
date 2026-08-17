@@ -289,7 +289,9 @@ Gere a edição completa seguindo o formato do sistema."""
         timeout=180,
     )
     if result.returncode != 0:
-        print(f"Erro ao chamar claude CLI: {result.stderr}", file=sys.stderr)
+        print(f"Erro ao chamar claude CLI (exit code {result.returncode})", file=sys.stderr)
+        print(f"stdout: {result.stdout!r}", file=sys.stderr)
+        print(f"stderr: {result.stderr!r}", file=sys.stderr)
         sys.exit(1)
     return result.stdout.strip()
 
