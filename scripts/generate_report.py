@@ -6,15 +6,20 @@ Saves to ../posts/YYYY-MM-DD.md and updates ../data/seen-articles.json.
 Skips (exits 0, no file written) if there aren't at least 2 genuinely new
 (never-published-before) and fresh (<48h) articles.
 
+Geração de texto via Claude Code CLI (`claude -p`), autenticado por
+CLAUDE_CODE_OAUTH_TOKEN (assinatura Claude, gerado com `claude setup-token`)
+em vez da API paga por token — não precisa de crédito de API separado.
+
 Required env vars:
-  NEWSDATA_API_KEY  — https://newsdata.io
-  ANTHROPIC_API_KEY — https://console.anthropic.com
+  NEWSDATA_API_KEY       — https://newsdata.io
+  CLAUDE_CODE_OAUTH_TOKEN — gerado localmente com `claude setup-token`
 """
 
 import json
 import os
 import re
 import ssl
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -27,12 +32,6 @@ try:
     SSL_CTX = ssl.create_default_context(cafile=certifi.where())
 except ImportError:
     SSL_CTX = ssl.create_default_context()
-
-try:
-    import anthropic
-except ImportError:
-    print("Erro: instale o pacote anthropic com: pip install anthropic")
-    sys.exit(1)
 
 ROOT = Path(__file__).parent.parent
 SEEN_PATH = ROOT / "data" / "seen-articles.json"
@@ -258,7 +257,7 @@ REGRAS:
 - A saudação de abertura deve refletir o conteúdo real da edição (não prometer "Irlanda e mundo" se só houver uma das duas seções) — use a variação certa entre as opções descritas no formato acima"""
 
 
-def generate_post(news: dict, anthropic_api_key: str) -> str:
+def generate_post(news: dict) -> str:
     today = datetime.now(timezone.utc)
     data_str = today.strftime("%d de %B de %Y").replace(
         "January", "Janeiro").replace("February", "Fevereiro").replace(
@@ -279,20 +278,20 @@ Hora da coleta: {news['fetched_at']}
 
 Gere a edição completa seguindo o formato do sistema."""
 
-    client = anthropic.Anthropic(api_key=anthropic_api_key)
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
+    result = subprocess.run(
+        [
+            "claude", "-p", user_content,
+            "--system-prompt", SYSTEM_PROMPT,
+            "--output-format", "text",
         ],
-        messages=[{"role": "user", "content": user_content}],
+        capture_output=True,
+        text=True,
+        timeout=180,
     )
-    return message.content[0].text
+    if result.returncode != 0:
+        print(f"Erro ao chamar claude CLI: {result.stderr}", file=sys.stderr)
+        sys.exit(1)
+    return result.stdout.strip()
 
 
 def parse_title_and_description(report: str) -> tuple[str, str, str]:
@@ -314,13 +313,15 @@ def yaml_quote(value: str) -> str:
 
 def main():
     news_key = os.environ.get("NEWSDATA_API_KEY", "")
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
     if not news_key:
         print("Erro: NEWSDATA_API_KEY não definida.", file=sys.stderr)
         sys.exit(1)
-    if not anthropic_key:
-        print("Erro: ANTHROPIC_API_KEY não definida.", file=sys.stderr)
+    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        print("Erro: CLAUDE_CODE_OAUTH_TOKEN não definida (gere com `claude setup-token`).", file=sys.stderr)
+        sys.exit(1)
+    if subprocess.run(["which", "claude"], capture_output=True).returncode != 0:
+        print("Erro: claude CLI não encontrado no PATH.", file=sys.stderr)
         sys.exit(1)
 
     slug = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -339,7 +340,7 @@ def main():
         return
 
     print("Gerando edição com Claude...", file=sys.stderr)
-    report_raw = generate_post(news, anthropic_key)
+    report_raw = generate_post(news)
     titulo, descricao, report_body = parse_title_and_description(report_raw)
 
     frontmatter = (
