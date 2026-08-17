@@ -59,6 +59,7 @@ export default function RootLayout({
             <nav className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-semibold text-white/70">
               <a href="/" className="hover:text-white transition-colors">Início</a>
               <a href="/estudar" className="hover:text-white transition-colors">Como estudar na Irlanda</a>
+              <a href="/recomendacoes" className="hover:text-white transition-colors">Recomendações</a>
               <a href="/sobre" className="hover:text-white transition-colors">Sobre</a>
             </nav>
 
