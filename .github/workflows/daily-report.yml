@@ -52,6 +52,12 @@ jobs:
           git config user.email "bot@irlandaparabrasileiros.com"
           git config user.name "Bot Irlanda"
           git add "posts/${TODAY}.md" data/seen-articles.json
+
+          if git diff --cached --quiet; then
+            echo "Edição de hoje já estava commitada (rodada duplicada), nada a fazer."
+            exit 0
+          fi
+
           git commit -m "edicao: ${TODAY}"
           git push origin main
 
