@@ -23,7 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Instalar dependências Python
-        run: pip install certifi
+        run: pip install certifi Pillow
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -51,7 +51,7 @@ jobs:
 
           git config user.email "bot@irlandaparabrasileiros.com"
           git config user.name "Bot Irlanda"
-          git add "posts/${TODAY}.md" data/seen-articles.json
+          git add "posts/${TODAY}.md" "public/stories/${TODAY}.png" data/seen-articles.json
 
           if git diff --cached --quiet; then
             echo "Edição de hoje já estava commitada (rodada duplicada), nada a fazer."

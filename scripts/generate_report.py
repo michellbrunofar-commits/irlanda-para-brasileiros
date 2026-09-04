@@ -33,9 +33,12 @@ try:
 except ImportError:
     SSL_CTX = ssl.create_default_context()
 
+from story_image import generate_story_image
+
 ROOT = Path(__file__).parent.parent
 SEEN_PATH = ROOT / "data" / "seen-articles.json"
 POSTS_DIR = ROOT / "posts"
+STORIES_DIR = ROOT / "public" / "stories"
 
 IRRELEVANT = [
     "sport", "football", "soccer", "rugby", "cricket", "golf",
@@ -201,10 +204,11 @@ def update_seen(used_articles: list[dict]) -> None:
 SYSTEM_PROMPT = """Você é o autor da newsletter "Irlanda em Foco", escrita para imigrantes brasileiros na Irlanda.
 Sua tarefa é transformar as notícias fornecidas numa edição curta e escaneável em Português Brasileiro.
 
-Sua resposta deve começar EXATAMENTE com duas linhas assim, antes de qualquer outra coisa:
+Sua resposta deve começar EXATAMENTE com três linhas assim, antes de qualquer outra coisa:
 
 TITULO: [manchete factual sobre o fato mais relevante da edição, estilo jornalístico — não genérico. Máximo 70 caracteres. Exemplo real: "Aluguel em Dublin sobe 8% e desemprego em tech chega a 5%"]
 DESCRICAO: [resumo do fato mais importante para meta description, 120 a 155 caracteres, frase completa]
+GANCHO: [a mesma notícia do TITULO, reescrita pra gerar curiosidade genuína num story do Instagram — não é o TITULO reformulado com mais adjetivo, é uma forma diferente de abrir a mesma informação (pergunta, contraste, número surpreendente). Precisa ser 100% sustentado pelo fato real, sem exagero nem promessa vazia — a pessoa lê o story e o texto completo bate com o que foi prometido. Máximo 90 caracteres. Exemplo real: "Aluguel em Dublin sobe 8% — e um bairro específico já ficou mais caro que o centro"]
 
 Depois de uma linha em branco, o corpo deve seguir EXATAMENTE este formato markdown (sem repetir título ou data como cabeçalho — isso já fica no frontmatter da página):
 
@@ -296,15 +300,21 @@ Gere a edição completa seguindo o formato do sistema."""
     return result.stdout.strip()
 
 
-def parse_title_and_description(report: str) -> tuple[str, str, str]:
+def parse_title_and_description(report: str) -> tuple[str, str, str, str]:
     lines = report.strip().split("\n")
-    if len(lines) < 2 or not lines[0].startswith("TITULO:") or not lines[1].startswith("DESCRICAO:"):
-        print("Erro: resposta do Claude não começou com TITULO:/DESCRICAO: como exigido.", file=sys.stderr)
+    if (
+        len(lines) < 3
+        or not lines[0].startswith("TITULO:")
+        or not lines[1].startswith("DESCRICAO:")
+        or not lines[2].startswith("GANCHO:")
+    ):
+        print("Erro: resposta do Claude não começou com TITULO:/DESCRICAO:/GANCHO: como exigido.", file=sys.stderr)
         sys.exit(1)
     titulo = lines[0].removeprefix("TITULO:").strip()
     descricao = lines[1].removeprefix("DESCRICAO:").strip()
-    body = "\n".join(lines[2:]).lstrip("\n")
-    return titulo, descricao, body
+    gancho = lines[2].removeprefix("GANCHO:").strip()
+    body = "\n".join(lines[3:]).lstrip("\n")
+    return titulo, descricao, gancho, body
 
 
 def yaml_quote(value: str) -> str:
@@ -343,7 +353,7 @@ def main():
 
     print("Gerando edição com Claude...", file=sys.stderr)
     report_raw = generate_post(news)
-    titulo, descricao, report_body = parse_title_and_description(report_raw)
+    titulo, descricao, gancho, report_body = parse_title_and_description(report_raw)
 
     frontmatter = (
         "---\n"
@@ -357,6 +367,10 @@ def main():
     POSTS_DIR.mkdir(exist_ok=True)
     out_path.write_text(final, encoding="utf-8")
     print(f"Edição salva em: {out_path}", file=sys.stderr)
+
+    story_path = STORIES_DIR / f"{slug}.png"
+    generate_story_image(gancho, story_path)
+    print(f"Imagem de story salva em: {story_path}", file=sys.stderr)
 
     update_seen(news["ireland"] + news["world"])
     print(f"seen-articles.json atualizado.", file=sys.stderr)
