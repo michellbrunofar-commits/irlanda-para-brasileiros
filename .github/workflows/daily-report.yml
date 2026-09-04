@@ -41,7 +41,7 @@ jobs:
 
       - name: Commitar e publicar (só se uma edição nova foi criada)
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
         run: |
           TODAY=$(date -u +%Y-%m-%d)
           if [ ! -f "posts/${TODAY}.md" ]; then
@@ -55,8 +55,4 @@ jobs:
           git commit -m "edicao: ${TODAY}"
           git push origin main
 
-          npx vercel --prod --token "$VERCEL_TOKEN" --yes
-          DEPLOY_URL=$(curl -s "https://api.vercel.com/v6/deployments?projectId=prj_Bch8MSMJbXhS47CygrgRIHGItaoa&teamId=team_WsvP475j6A3Vg8XfLNTJlgBN&limit=1" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" | python3 -c "import json,sys; print('https://' + json.load(sys.stdin)['deployments'][0]['url'])")
-          echo "Deploy: $DEPLOY_URL"
-          npx vercel alias set "$DEPLOY_URL" irlandaparabrasileiros.vercel.app --token "$VERCEL_TOKEN"
+          curl -sf -X POST "$DEPLOY_HOOK_URL"
