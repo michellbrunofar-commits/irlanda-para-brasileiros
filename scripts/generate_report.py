@@ -322,12 +322,7 @@ Depois de uma linha em branco, traduza o corpo inteiro pro inglês, mantendo:
 - Escreva em inglês natural e fluente, não tradução ao pé da letra"""
 
 
-def translate_to_english(report_body: str, titulo: str, descricao: str) -> tuple[str, str, str]:
-    user_content = f"""TITULO: {titulo}
-DESCRICAO: {descricao}
-
-{report_body}"""
-
+def _try_translate(user_content: str) -> tuple[str, str, str] | None:
     result = subprocess.run(
         [
             "claude", "-p", user_content,
@@ -342,16 +337,42 @@ DESCRICAO: {descricao}
         print(f"Erro ao traduzir pro inglês (exit code {result.returncode})", file=sys.stderr)
         print(f"stdout: {result.stdout!r}", file=sys.stderr)
         print(f"stderr: {result.stderr!r}", file=sys.stderr)
+        return None
+
+    # Procura as linhas TITLE:/DESCRIPTION: nas primeiras linhas em vez de exigir
+    # posição exata — o modelo às vezes acrescenta uma linha em branco ou preâmbulo
+    # antes, mesmo quando instruído a não fazer isso.
+    lines = result.stdout.strip().split("\n")
+    title_idx = next((i for i, l in enumerate(lines[:5]) if l.startswith("TITLE:")), None)
+    desc_idx = next((i for i, l in enumerate(lines[:6]) if l.startswith("DESCRIPTION:")), None)
+    if title_idx is None or desc_idx is None or desc_idx <= title_idx:
+        print("Erro: tradução não continha TITLE:/DESCRIPTION: como exigido.", file=sys.stderr)
+        print(f"stdout recebido: {result.stdout[:500]!r}", file=sys.stderr)
+        return None
+
+    title_en = lines[title_idx].removeprefix("TITLE:").strip()
+    description_en = lines[desc_idx].removeprefix("DESCRIPTION:").strip()
+    body_en = "\n".join(lines[desc_idx + 1:]).lstrip("\n")
+    return title_en, description_en, body_en
+
+
+def translate_to_english(report_body: str, titulo: str, descricao: str) -> tuple[str, str, str]:
+    user_content = f"""TITULO: {titulo}
+DESCRICAO: {descricao}
+
+{report_body}"""
+
+    parsed = _try_translate(user_content)
+    if parsed is None:
+        print("Tentando traduzir de novo (1 retry)...", file=sys.stderr)
+        retry_content = user_content + "\n\nATENÇÃO: sua resposta anterior não começou EXATAMENTE com as linhas TITLE:/DESCRIPTION: como exigido pelo formato. Siga o formato à risca desta vez, sem nenhum texto antes de TITLE:."
+        parsed = _try_translate(retry_content)
+
+    if parsed is None:
+        print("Erro: tradução falhou depois do retry.", file=sys.stderr)
         sys.exit(1)
 
-    lines = result.stdout.strip().split("\n")
-    if len(lines) < 2 or not lines[0].startswith("TITLE:") or not lines[1].startswith("DESCRIPTION:"):
-        print("Erro: tradução não começou com TITLE:/DESCRIPTION: como exigido.", file=sys.stderr)
-        sys.exit(1)
-    title_en = lines[0].removeprefix("TITLE:").strip()
-    description_en = lines[1].removeprefix("DESCRIPTION:").strip()
-    body_en = "\n".join(lines[2:]).lstrip("\n")
-    return title_en, description_en, body_en
+    return parsed
 
 
 def parse_title_and_description(report: str) -> tuple[str, str, str, str]:
