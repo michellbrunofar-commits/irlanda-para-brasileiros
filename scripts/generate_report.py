@@ -38,6 +38,7 @@ from story_image import generate_story_image
 ROOT = Path(__file__).parent.parent
 SEEN_PATH = ROOT / "data" / "seen-articles.json"
 POSTS_DIR = ROOT / "posts"
+POSTS_EN_DIR = POSTS_DIR / "en"
 STORIES_DIR = ROOT / "public" / "stories"
 
 IRRELEVANT = [
@@ -301,6 +302,58 @@ Gere a edição completa seguindo o formato do sistema."""
     return result.stdout.strip()
 
 
+TRANSLATE_SYSTEM_PROMPT = """Você traduz edições da newsletter "Irlanda em Foco" do português brasileiro pro inglês.
+A tradução é pra um leitor que não fala português mas se interessou pelo conteúdo (ex.: amigo estrangeiro de um assinante) — não é uma versão editorial nova, é a mesma edição, fielmente traduzida.
+
+Sua resposta deve começar EXATAMENTE com duas linhas assim:
+
+TITLE: [tradução natural do TITULO, não literal palavra-por-palavra]
+DESCRIPTION: [tradução natural da DESCRICAO]
+
+Depois de uma linha em branco, traduza o corpo inteiro pro inglês, mantendo:
+- A mesma estrutura markdown exata (títulos, bullets, negrito, linha horizontal ---)
+- Todos os links markdown com a MESMA url exata (nunca traduza ou altere uma URL)
+- Nomes próprios e o VALOR de todo número, data e quantia em EUR/BRL têm que ser idênticos ao original — mas reformate a PONTUAÇÃO do número pra convenção inglesa: separador decimal vira ponto e separador de milhar vira vírgula (ex.: "€2.043" no português vira "€2,043" em inglês; "6,6%" vira "6.6%"; "€1.034,03" vira "€1,034.03"). Errar essa troca faz o número parecer outra coisa pra um leitor de inglês — confira cada número do texto antes de finalizar
+- Traduza os cabeçalhos de seção: "Irlanda" → "Ireland", "Mundo" → "World", "O que isso significa pra você" → "What this means for you"
+- A saudação de abertura vira algo natural em inglês equivalente (ex.: "Good morning! Here's what you need to know today about Ireland's economy.")
+- A linha final sobre fontes vira "Sources for this edition: [...]"
+- A linha sobre IA vira "Research and writing 100% automated with AI support — no human review before publishing."
+- Nunca adicione, corte ou reinterprete fatos — é tradução, não reescrita
+- Escreva em inglês natural e fluente, não tradução ao pé da letra"""
+
+
+def translate_to_english(report_body: str, titulo: str, descricao: str) -> tuple[str, str, str]:
+    user_content = f"""TITULO: {titulo}
+DESCRICAO: {descricao}
+
+{report_body}"""
+
+    result = subprocess.run(
+        [
+            "claude", "-p", user_content,
+            "--system-prompt", TRANSLATE_SYSTEM_PROMPT,
+            "--output-format", "text",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=240,
+    )
+    if result.returncode != 0:
+        print(f"Erro ao traduzir pro inglês (exit code {result.returncode})", file=sys.stderr)
+        print(f"stdout: {result.stdout!r}", file=sys.stderr)
+        print(f"stderr: {result.stderr!r}", file=sys.stderr)
+        sys.exit(1)
+
+    lines = result.stdout.strip().split("\n")
+    if len(lines) < 2 or not lines[0].startswith("TITLE:") or not lines[1].startswith("DESCRIPTION:"):
+        print("Erro: tradução não começou com TITLE:/DESCRIPTION: como exigido.", file=sys.stderr)
+        sys.exit(1)
+    title_en = lines[0].removeprefix("TITLE:").strip()
+    description_en = lines[1].removeprefix("DESCRIPTION:").strip()
+    body_en = "\n".join(lines[2:]).lstrip("\n")
+    return title_en, description_en, body_en
+
+
 def parse_title_and_description(report: str) -> tuple[str, str, str, str]:
     lines = report.strip().split("\n")
     if (
@@ -372,6 +425,19 @@ def main():
     story_path = STORIES_DIR / f"{slug}.png"
     generate_story_image(gancho, story_path)
     print(f"Imagem de story salva em: {story_path}", file=sys.stderr)
+
+    print("Traduzindo edição pro inglês...", file=sys.stderr)
+    titulo_en, descricao_en, body_en = translate_to_english(report_body, titulo, descricao)
+    frontmatter_en = (
+        "---\n"
+        f"title: {yaml_quote(titulo_en)}\n"
+        f"description: {yaml_quote(descricao_en)}\n"
+        f"date: {slug}\n"
+        "---\n\n"
+    )
+    POSTS_EN_DIR.mkdir(parents=True, exist_ok=True)
+    (POSTS_EN_DIR / f"{slug}.md").write_text(frontmatter_en + body_en, encoding="utf-8")
+    print(f"Edição em inglês salva em: {POSTS_EN_DIR / f'{slug}.md'}", file=sys.stderr)
 
     update_seen(news["ireland"] + news["world"])
     print(f"seen-articles.json atualizado.", file=sys.stderr)

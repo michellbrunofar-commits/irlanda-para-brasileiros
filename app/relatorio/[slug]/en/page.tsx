@@ -1,10 +1,9 @@
-import { getPostBySlug, getAllPostSlugs, hasEnglishVersion } from "@/lib/posts";
+import { getPostBySlug, getAllEnglishPostSlugs } from "@/lib/posts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import NewsletterForm from "@/components/NewsletterForm";
 
 export async function generateStaticParams() {
-  return getAllPostSlugs().map((slug) => ({ slug }));
+  return getAllEnglishPostSlugs().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({
@@ -13,32 +12,30 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug).catch(() => null);
+  const post = await getPostBySlug(slug, "en").catch(() => null);
   if (!post) return {};
   return {
-    title: post.title + " | Irlanda para Brasileiros",
+    title: post.title + " | Ireland for Brazilians",
     description: post.description || undefined,
     alternates: {
-      canonical: `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}`,
-      languages: hasEnglishVersion(slug)
-        ? {
-            "pt-BR": `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}`,
-            en: `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}/en`,
-          }
-        : undefined,
+      canonical: `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}/en`,
+      languages: {
+        "pt-BR": `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}`,
+        "en": `https://irlandaparabrasileiros.vercel.app/relatorio/${slug}/en`,
+      },
     },
     openGraph: {
       title: post.title,
       description: post.description || undefined,
       type: "article",
       publishedTime: post.date,
-      locale: "pt_BR",
+      locale: "en_IE",
       images: ["/og-image.png"],
     },
   };
 }
 
-export default async function ReportPage({
+export default async function EnglishReportPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -47,7 +44,7 @@ export default async function ReportPage({
 
   let post;
   try {
-    post = await getPostBySlug(slug);
+    post = await getPostBySlug(slug, "en");
   } catch {
     notFound();
   }
@@ -60,28 +57,25 @@ export default async function ReportPage({
           href="/"
           className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-ireland-green transition-colors font-medium"
         >
-          ← Todos os relatórios
+          ← All reports
         </Link>
-        {hasEnglishVersion(slug) && (
-          <Link
-            href={`/relatorio/${slug}/en`}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-ireland-green hover:text-ireland-green-dark transition-colors"
-          >
-            🇬🇧 Read in English
-          </Link>
-        )}
+        <Link
+          href={`/relatorio/${slug}`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-ireland-green hover:text-ireland-green-dark transition-colors"
+        >
+          🇧🇷 Ler em português
+        </Link>
       </div>
 
       {/* Masthead da edição */}
       <div className="relative bg-hero-gradient text-white rounded-2xl px-6 py-8 mb-8 overflow-hidden shadow-lg">
-        {/* Background decoration */}
         <div className="absolute right-4 top-4 text-7xl opacity-10 select-none">🇮🇪</div>
         <div className="absolute right-20 bottom-2 text-4xl opacity-10 select-none">🇧🇷</div>
 
         <div className="relative">
           <div className="flex items-center flex-wrap gap-2 mb-3">
             <span className="badge bg-white/20 text-white/90 backdrop-blur-sm">
-              Edição
+              Edition
             </span>
             <span className="badge bg-ireland-orange/80 text-white">
               {formatDate(post.date)}
@@ -94,11 +88,10 @@ export default async function ReportPage({
             </p>
           )}
           <p className="mt-4 text-xs text-white/60">
-            Pesquisa e redação 100% automáticas com apoio de IA · sem revisão humana antes de publicar
+            Automated research and writing with AI support · no human review before publishing. Translated from the original Portuguese edition.
           </p>
         </div>
 
-        {/* Brazil stripe — único elemento decorativo do cabeçalho, sem repetir mais abaixo */}
         <div className="absolute bottom-0 left-0 right-0 flex h-1.5">
           <div className="flex-1 bg-brazil-green" />
           <div className="flex-1 bg-brazil-yellow" />
@@ -121,20 +114,19 @@ export default async function ReportPage({
       />
 
       <p className="mt-8 text-sm text-gray-400 text-center">
-        Até a próxima edição — só publicamos quando tem novidade de verdade.
+        This is a daily newsletter about Ireland written in Portuguese for Brazilian immigrants —{" "}
+        <Link href={`/relatorio/${slug}`} className="text-ireland-green hover:underline">
+          read the original edition
+        </Link>
+        .
       </p>
-
-      {/* Captura de e-mail */}
-      <div className="mt-10">
-        <NewsletterForm id="fim" />
-      </div>
     </div>
   );
 }
 
 function formatDate(raw: string): string {
   const d = new Date(raw + "T12:00:00Z");
-  return d.toLocaleDateString("pt-BR", {
+  return d.toLocaleDateString("en-IE", {
     day: "2-digit",
     month: "long",
     year: "numeric",

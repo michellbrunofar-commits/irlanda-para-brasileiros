@@ -5,6 +5,7 @@ import { remark } from "remark";
 import html from "remark-html";
 
 const postsDir = path.join(process.cwd(), "posts");
+const postsEnDir = path.join(postsDir, "en");
 
 export interface PostMeta {
   slug: string;
@@ -41,8 +42,9 @@ export function getAllPostsMeta(): PostMeta[] {
   });
 }
 
-export async function getPostBySlug(slug: string): Promise<Post> {
-  const raw = fs.readFileSync(path.join(postsDir, `${slug}.md`), "utf8");
+export async function getPostBySlug(slug: string, lang: "pt" | "en" = "pt"): Promise<Post> {
+  const dir = lang === "en" ? postsEnDir : postsDir;
+  const raw = fs.readFileSync(path.join(dir, `${slug}.md`), "utf8");
   const { data, content } = matter(raw);
   const processed = await remark().use(html).process(content);
   return {
@@ -57,4 +59,16 @@ export async function getPostBySlug(slug: string): Promise<Post> {
         : slug,
     contentHtml: processed.toString(),
   };
+}
+
+export function hasEnglishVersion(slug: string): boolean {
+  return fs.existsSync(path.join(postsEnDir, `${slug}.md`));
+}
+
+export function getAllEnglishPostSlugs(): string[] {
+  if (!fs.existsSync(postsEnDir)) return [];
+  return fs
+    .readdirSync(postsEnDir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => f.replace(/\.md$/, ""));
 }
