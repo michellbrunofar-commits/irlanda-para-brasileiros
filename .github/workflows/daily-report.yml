@@ -1,9 +1,10 @@
 name: Gerar Edição Diária
 
 on:
-  schedule:
-    # todo dia às 7h UTC (8h Irlanda)
-    - cron: "0 7 * * *"
+  # Pausado em 19/09/2026: esforço redirecionado pro pipeline de Instagram do
+  # Go Sem Fronteiras. Site continua no ar; reativar descomentando o schedule:
+  # schedule:
+  #   - cron: "0 7 * * *"  # todo dia às 7h UTC (8h Irlanda)
   workflow_dispatch:
 
 permissions:
